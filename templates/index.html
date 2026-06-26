@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Job Source Agent</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#222b36; --text:#e6edf3;
+    --muted:#8b949e; --accent:#2f81f7; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.5}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  .badges{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .badge.on{color:var(--good);border-color:#23502f}
+  .badge.off{color:var(--warn);border-color:#5a4711}
+  main{max-width:920px;margin:0 auto;padding:24px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px}
+  .tab{padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+       border-radius:8px;cursor:pointer;font-size:14px}
+  .tab.active{color:var(--text);border-color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px}
+  .hide{display:none}
+  textarea,input[type=text]{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--text);
+       border-radius:8px;padding:10px;font-size:14px;font-family:inherit}
+  textarea{resize:vertical;min-height:58px}
+  label{font-size:12px;color:var(--muted);display:block;margin:10px 0 4px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  button.act{background:var(--accent);border:none;color:#fff;padding:9px 16px;border-radius:8px;
+       cursor:pointer;font-size:14px;font-weight:600}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);padding:9px 14px;
+       border-radius:8px;cursor:pointer;font-size:13px}
+  button:disabled{opacity:.5;cursor:default}
+  .log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted);
+       background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:200px;
+       overflow:auto;white-space:pre-wrap}
+  .log .stage{color:var(--accent)}
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:#0f141b}
+  .card h3{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .pill{font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .pill.deep{color:var(--good);border-color:#23502f}
+  .pill.shallow{color:var(--warn);border-color:#5a4711}
+  .kv{font-size:13px;margin:3px 0}
+  .kv a{color:var(--accent);text-decoration:none;word-break:break-all}
+  .kv a:hover{text-decoration:underline}
+  .muted{color:var(--muted)}
+  .score{margin-left:auto;font-size:12px;color:var(--muted)}
+  .empty{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛰️ AI Job Source Agent</h1>
+  <span class="muted" style="font-size:13px">LinkedIn signal → company career page → live opening</span>
+  <div class="badges" id="badges"></div>
+</header>
+
+<main>
+  <div class="tabs">
+    <div class="tab active" data-mode="search" onclick="setMode('search')">Search</div>
+    <div class="tab" data-mode="single" onclick="setMode('single')">Single link</div>
+  </div>
+
+  <!-- SEARCH MODE -->
+  <section id="panel-search" class="panel">
+    <label>Describe what you're looking for</label>
+    <textarea id="q" placeholder="e.g. Senior AI engineers at fintech startups, remote">Senior AI engineers at fintech startups, remote</textarea>
+    <div class="row">
+      <button class="ghost" onclick="parseFilters()">↳ Parse to filters</button>
+      <span class="muted" id="parsehint" style="font-size:12px"></span>
+    </div>
+    <div class="grid" style="margin-top:8px">
+      <div><label>Role</label><input type="text" id="f-role"></div>
+      <div><label>Location</label><input type="text" id="f-location"></div>
+      <div><label>Keywords (comma-separated)</label><input type="text" id="f-keywords"></div>
+      <div><label>Industry</label><input type="text" id="f-industry"></div>
+      <div><label>Seniority</label><input type="text" id="f-seniority"></div>
+      <div><label>Remote</label>
+        <select id="f-remote" style="width:100%;background:#0d1117;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-size:14px">
+          <option value="">any</option><option value="true">remote</option><option value="false">on-site</option>
+        </select>
+      </div>
+    </div>
+    <div class="row"><button class="act" id="btn-search" onclick="runSearch()">Run search</button></div>
+  </section>
+
+  <!-- SINGLE MODE -->
+  <section id="panel-single" class="panel hide">
+    <label>LinkedIn job or company URL</label>
+    <input type="text" id="url" placeholder="https://www.linkedin.com/jobs/view/...">
+    <div class="row"><button class="act" id="btn-single" onclick="runSingle()">Resolve</button></div>
+  </section>
+
+  <section class="panel">
+    <label>Progress</label>
+    <div class="log" id="log"><span class="empty">Run a search to see the agent work in real time…</span></div>
+  </section>
+
+  <section id="results"></section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let es = null;
+
+function setMode(m){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.mode===m));
+  $('panel-search').classList.toggle('hide', m!=='search');
+  $('panel-single').classList.toggle('hide', m!=='single');
+}
+
+function logLine(stage, msg){
+  const el=$('log');
+  if(el.querySelector('.empty')) el.innerHTML='';
+  el.innerHTML += `<div><span class="stage">[${stage}]</span> ${escapeHtml(msg)}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+async function parseFilters(){
+  $('parsehint').textContent='parsing…';
+  const r = await fetch('/api/parse',{method:'POST',headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({query:$('q').value})});
+  const f = await r.json();
+  $('f-role').value=f.role||''; $('f-location').value=f.location||'';
+  $('f-keywords').value=(f.keywords||[]).join(', '); $('f-industry').value=f.industry||'';
+  $('f-seniority').value=f.seniority||'';
+  $('f-remote').value = f.remote===true?'true':f.remote===false?'false':'';
+  $('parsehint').textContent='filters filled — edit if needed, then Run search';
+}
+
+function startStream(url, btn){
+  if(es) es.close();
+  $('log').innerHTML=''; $('results').innerHTML='';
+  btn.disabled=true;
+  es = new EventSource(url);
+  es.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    if(d.type==='meta') renderBadges(d);
+    else if(d.type==='progress') logLine(d.stage, d.message);
+    else if(d.type==='result'){ renderResults(d.results); es.close(); btn.disabled=false; }
+    else if(d.type==='error'){ logLine('error', d.message); es.close(); btn.disabled=false; }
+  };
+  es.onerror = () => { es.close(); btn.disabled=false; };
+}
+
+function runSearch(){
+  const p = new URLSearchParams({
+    q:$('q').value, role:$('f-role').value, location:$('f-location').value,
+    keywords:$('f-keywords').value, industry:$('f-industry').value,
+    seniority:$('f-seniority').value, remote:$('f-remote').value});
+  startStream('/api/search/stream?'+p.toString(), $('btn-search'));
+}
+function runSingle(){
+  const p=new URLSearchParams({url:$('url').value});
+  startStream('/api/single/stream?'+p.toString(), $('btn-single'));
+}
+
+function renderResults(list){
+  const box=$('results');
+  if(!list || !list.length){ box.innerHTML='<div class="panel empty">No results.</div>'; return; }
+  box.innerHTML='<div class="panel"><label>Results</label><div id="cards"></div></div>';
+  list.forEach(r=>$('cards').appendChild(card(r)));
+}
+
+function card(r){
+  const el=document.createElement('div'); el.className='card';
+  const score = r.relevance? `<span class="score">relevance ${Number(r.relevance).toFixed(2)}</span>`:'';
+  const depth = `<span class="pill ${r.depth}">${r.depth}</span>`;
+  el.innerHTML = `<h3>${escapeHtml(r.company_name||'(unknown company)')} ${depth} ${score}</h3>`;
+  el.innerHTML += kv('Career page', r.career_page_url);
+  el.innerHTML += kv('Open position', r.open_position_url);
+  el.innerHTML += kv('Source job', r.source_job_url);
+  if(r.notes) el.innerHTML += `<div class="kv muted">${escapeHtml(r.notes)}</div>`;
+  if(r.depth==='shallow'){
+    const b=document.createElement('button'); b.className='ghost'; b.style.marginTop='8px';
+    b.textContent='Resolve deeply'; b.onclick=()=>resolveCard(r, el, b);
+    el.appendChild(b);
+  }
+  return el;
+}
+function kv(label,val){
+  if(!val) return `<div class="kv muted">${label}: —</div>`;
+  return `<div class="kv">${label}: <a href="${escapeHtml(val)}" target="_blank" rel="noopener">${escapeHtml(val)}</a></div>`;
+}
+async function resolveCard(r, el, btn){
+  btn.disabled=true; btn.textContent='Resolving…';
+  const r2 = await (await fetch('/api/resolve',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({company_name:r.company_name, source_job_url:r.source_job_url,
+                           company_website:r.company_website||''})})).json();
+  r2.relevance=r.relevance;
+  el.replaceWith(card(r2));
+}
+
+function renderBadges(d){
+  const b=$('badges'); b.innerHTML='';
+  [['DeepSeek',d.deepseek],['Apify',d.apify],['Tavily',d.tavily]].forEach(([n,on])=>{
+    const s=document.createElement('span'); s.className='badge '+(on?'on':'off');
+    s.textContent=`${n}: ${on?'on':'no key'}`; b.appendChild(s);
+  });
+}
+// initial badge state
+fetch('/api/health').then(r=>r.json()).then(renderBadges);
+</script>
+</body>
+</html>
