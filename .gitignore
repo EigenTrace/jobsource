@@ -6,6 +6,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+app/__pycache__/
 
 # Virtual environments
 .venv/

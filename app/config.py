@@ -38,7 +38,7 @@ class Settings:
 
     # Apify
     apify_api_token: str = field(default_factory=lambda: os.getenv("APIFY_API_TOKEN", "").strip())
-    apify_linkedin_actor: str = field(default_factory=lambda: os.getenv("APIFY_LINKEDIN_JOBS_ACTOR", "bebity~linkedin-jobs-scraper").strip())
+    apify_linkedin_actor: str = field(default_factory=lambda: os.getenv("APIFY_LINKEDIN_JOBS_ACTOR", "valig~linkedin-jobs-scraper").strip())
 
     # Tavily
     tavily_api_key: str = field(default_factory=lambda: os.getenv("TAVILY_API_KEY", "").strip())

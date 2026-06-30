@@ -69,12 +69,8 @@ async def candidate_from_linkedin_url(url: str) -> Candidate:
             company_linkedin_url=url,
         )
 
-    # Job URL: try Apify (reliable), then a guest-page parse.
-    if True:
-        item = await _apify_single(url)
-        if item:
-            return _normalize_linkedin_item(item, fallback_source_url=url)
-
+    # Job URL: the search actor can't fetch one specific posting, so read the
+    # public guest page directly and parse the company from it.
     page = await fetch_one(url)
     name, company_li = _parse_linkedin_company(page.html)
     return Candidate(
@@ -83,18 +79,6 @@ async def candidate_from_linkedin_url(url: str) -> Candidate:
         source_job_url=url,
         company_linkedin_url=company_li,
     )
-
-
-async def _apify_single(url: str) -> dict | None:
-    """Best-effort: ask the configured actor about one job URL."""
-    from .config import settings
-
-    if not settings.has_apify:
-        return None
-    items = await apify_linkedin_jobs(query="", location="", rows=1)
-    # Many actors ignore a bare URL; this is intentionally permissive. If the
-    # actor supports `searchUrl`, the call in search_sources passes it through.
-    return items[0] if items else None
 
 
 def _parse_linkedin_company(html: str) -> tuple[str, str]:

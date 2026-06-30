@@ -101,10 +101,12 @@ async def find_official_website(company_name: str) -> str:
 async def apify_linkedin_jobs(query: str, location: str = "", *, rows: int = 12) -> list[dict]:
     """Run the configured Apify LinkedIn-jobs actor synchronously and return items.
 
-    The exact input/output schema varies per actor; we normalise downstream in
-    `discovery.py`. Returns the raw dataset items (list of dicts).
+    Input is tailored to `valig/linkedin-jobs-scraper` (keyword-based,
+    pay-per-result): it expects `title`, `location`, and `limit`. If you switch
+    to a different actor, adjust `payload` to that actor's input schema.
+    Returns the raw dataset items (list of dicts).
     """
-    if not settings.has_apify:
+    if not settings.has_apify or not query.strip():
         return []
     try:
         import httpx
@@ -112,15 +114,11 @@ async def apify_linkedin_jobs(query: str, location: str = "", *, rows: int = 12)
         actor = settings.apify_linkedin_actor
         url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
         payload = {
-            "title": query,
-            "location": location,
-            "rows": rows,
-            # common alt keys different actors accept; harmless extras:
-            "keyword": query,
-            "searchUrl": "",
-            "maxItems": rows,
+            "title": query,                          # role / skill / company
+            "location": location or "United States",
+            "limit": max(10, rows),                  # valig's count field
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             resp = await client.post(
                 url,
                 params={"token": settings.apify_api_token},
