@@ -37,6 +37,15 @@ Per result it returns the three required fields plus a trace of how it got there
   "notes": "B:heuristic score 5.0; C:LLM picked from postings" }
 ```
 
+
+
+
+
+
+
+https://github.com/user-attachments/assets/1858c617-8043-4db0-a981-fada4ac65841
+
+
 ## Why it's generic (the design idea)
 
 The graded requirement is *"works across very different website formats."* The approach is a
