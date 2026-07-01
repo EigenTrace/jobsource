@@ -1,6 +1,10 @@
 PLAN.md
 .env
-
+DEMO*.md
+link.txt
+demo*.gif
+palette.png
+*.mov
 # Python
 __pycache__/
 *.py[cod]
